@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # ship-it: Unified Apple platform project tools
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -13,18 +13,29 @@ CONFIG="${CONFIG:-Release}"
 
 print_header "Building ${APP_NAME:-Project} ($CONFIG)"
 
+# Execute pre-build hook if defined
+if [[ -n "${PRE_BUILD_HOOK:-}" ]]; then
+    print_step 0 2 "Executing pre-build hook: $PRE_BUILD_HOOK"
+    eval "$PRE_BUILD_HOOK"
+fi
+
 # Ensure directories exist
 mkdir -p "${BUILD_DIR:-build}"
 
 if [[ "$PROJECT_TYPE" == "spm" ]]; then
     print_step 1 2 "Building with Swift Package Manager..."
     
+    PACKAGE_PATH_ARG=""
+    if [[ -n "${PACKAGE_PATH:-}" ]]; then
+        PACKAGE_PATH_ARG="--package-path ${PACKAGE_PATH}"
+    fi
+
     if [[ "$CONFIG" == "Release" ]]; then
-        xcrun swift build -c release
-        BIN_PATH=$(xcrun swift build -c release --show-bin-path)/${APP_NAME}
+        xcrun swift build -c release $PACKAGE_PATH_ARG
+        BIN_PATH=$(xcrun swift build -c release $PACKAGE_PATH_ARG --show-bin-path)/${APP_NAME}
     else
-        xcrun swift build
-        BIN_PATH=$(xcrun swift build --show-bin-path)/${APP_NAME}
+        xcrun swift build $PACKAGE_PATH_ARG
+        BIN_PATH=$(xcrun swift build $PACKAGE_PATH_ARG --show-bin-path)/${APP_NAME}
     fi
     
     if [[ -f "$BIN_PATH" ]]; then
@@ -66,4 +77,10 @@ elif [[ "$PROJECT_TYPE" == "xcode" ]]; then
 else
     print_error "Unsupported project type: $PROJECT_TYPE"
     exit 1
+fi
+
+# Execute post-build hook if defined
+if [[ -n "${POST_BUILD_HOOK:-}" ]]; then
+    print_step 3 2 "Executing post-build hook: $POST_BUILD_HOOK"
+    eval "$POST_BUILD_HOOK"
 fi

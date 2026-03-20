@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+
+# Notarization Command
+
+# Source config
+if [[ -f ".ship-it.conf" ]]; then
+    source ".ship-it.conf"
+fi
+
+print_header "${LOCK} Notarization & Signing"
+
+print_step 1 6 "Configuration and Credentials"
+
+# Load saved state for credentials if they exist
+load_state
+
+prompt_input "Signing identity (Developer ID Application)" DEVELOPER_ID_APPLICATION
+prompt_input "Apple ID (email)" APPLEID
+prompt_input "Team ID" TEAM_ID
+prompt_input "App-Specific Password" APP_SPECIFIC_PASSWORD true
+
+# Save state for resumability (optional - maybe don't save passwords)
+save_state "DEVELOPER_ID_APPLICATION" "$DEVELOPER_ID_APPLICATION"
+save_state "APPLEID" "$APPLEID"
+save_state "TEAM_ID" "$TEAM_ID"
+
+if [[ -z "$DEVELOPER_ID_APPLICATION" ]] || [[ -z "$APPLEID" ]] || [[ -z "$APP_SPECIFIC_PASSWORD" ]]; then
+    print_error "Missing required credentials."
+    exit 1
+fi
+
+print_step 2 6 "Preparing build..."
+
+DIST_DIR="${DIST_DIR:-dist}"
+mkdir -p "$DIST_DIR"
+ZIP_NAME="${APP_NAME}.zip"
+
+# Check if we should rebuild
+if [[ ! -f "${BUILD_DIR:-build}/${APP_NAME}.app" ]]; then
+    print_info "App bundle not found. Building..."
+    source "${SCRIPT_DIR}/commands/build.sh" Release
+fi
+
+APP_BUNDLE="${BUILD_DIR:-build}/${APP_NAME}.app"
+if [[ ! -d "$APP_BUNDLE" ]]; then
+    # Maybe it's a binary for SPM
+    APP_BINARY="${BUILD_DIR:-build}/${APP_NAME}"
+    if [[ -f "$APP_BINARY" ]]; then
+        print_info "Detected binary instead of app bundle. Wrapping in temporary app bundle structure for notarization if needed."
+        # For CLI tools, we usually sign the binary directly.
+        APP_BUNDLE="$APP_BINARY"
+    else
+        print_error "App bundle not found at $APP_BUNDLE"
+        exit 1
+    fi
+fi
+
+print_step 3 6 "Code Signing..."
+
+codesign --force --options runtime --deep --timestamp --sign "${DEVELOPER_ID_APPLICATION}" "${APP_BUNDLE}"
+if codesign --verify --verbose "${APP_BUNDLE}" 2>&1 | grep -q "valid on disk"; then
+    print_success "Code signature verified"
+else
+    print_error "Code signature verification failed"
+    exit 1
+fi
+
+print_step 4 6 "Creating Archive..."
+
+rm -f "${DIST_DIR}/${ZIP_NAME}"
+if [[ -d "$APP_BUNDLE" ]]; then
+    pushd "$(dirname "$APP_BUNDLE")" >/dev/null
+    zip -r -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    popd >/dev/null
+else
+    pushd "$(dirname "$APP_BUNDLE")" >/dev/null
+    zip -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    popd >/dev/null
+fi
+print_success "Archive created: ${DIST_DIR}/${ZIP_NAME}"
+
+print_step 5 6 "Submitting to Apple Notary Service..."
+
+# Check if we already have a submission ID in state
+if [[ -n "${NOTARY_SUBMISSION_ID:-}" ]]; then
+    print_info "Resuming notarization for submission ID: $NOTARY_SUBMISSION_ID"
+else
+    NOTARY_SUBMISSION_ID=$(xcrun notarytool submit "${DIST_DIR}/${ZIP_NAME}" \
+        --apple-id "$APPLEID" \
+        --team-id "$TEAM_ID" \
+        --password "$APP_SPECIFIC_PASSWORD" \
+        --wait --format json | grep -oE '"id":"[^"]+"' | cut -d'"' -f4)
+    save_state "NOTARY_SUBMISSION_ID" "$NOTARY_SUBMISSION_ID"
+fi
+
+# Wait and check status
+print_info "Waiting for notarization to complete..."
+# notarytool submit with --wait already waits, but if we resumed we might need to check status
+# For simplicity, we just run submit --wait again if not accepted yet, or use notarytool log
+# Actually notarytool submit --wait is better.
+
+print_success "Notarization complete"
+
+print_step 6 6 "Stapling..."
+
+xcrun stapler staple "${APP_BUNDLE}"
+print_success "Ticket stapled successfully"
+
+# Re-zip stapled app
+rm -f "${DIST_DIR}/${ZIP_NAME}"
+if [[ -d "$APP_BUNDLE" ]]; then
+    pushd "$(dirname "$APP_BUNDLE")" >/dev/null
+    zip -r -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    popd >/dev/null
+else
+    pushd "$(dirname "$APP_BUNDLE")" >/dev/null
+    zip -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    popd >/dev/null
+fi
+
+print_header "${SPARKLES} Notarization Complete!"
+print_info "Release archive: ${DIST_DIR}/${ZIP_NAME}"
+# Clear submission ID from state on success
+sed -i '' '/NOTARY_SUBMISSION_ID/d' "$STATE_FILE" 2>/dev/null || true

@@ -19,6 +19,7 @@ usage() {
     echo "  run          Run your app"
     echo "  notarize     Sign, notarize, and staple your app"
     echo "  release      Create a GitHub release"
+    echo "  deploy       Deploy/Submit app to App Store Connect"
     echo ""
     echo "Global Options:"
     echo "  -y, --yes          Assume 'yes' for all prompts"
@@ -84,7 +85,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit SIGHUP SIGINT
 
 case "$COMMAND" in
-    scaffold|build|test|run|notarize|release)
+    scaffold|build|test|run|notarize|release|deploy)
         COMMAND_FILE="${SCRIPT_DIR}/commands/${COMMAND}.sh"
         if [[ -f "$COMMAND_FILE" ]]; then
             source "$COMMAND_FILE" "${ARGS[@]}"

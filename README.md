@@ -27,6 +27,7 @@ Use the `./ship` shortcut:
 ./ship run          # Run the app
 ./ship notarize     # Sign and notarize for distribution
 ./ship release      # Create a GitHub release
+./ship deploy       # Deploy/Submit app to App Store Connect
 ```
 
 ## Features

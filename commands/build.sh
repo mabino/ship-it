@@ -11,7 +11,14 @@ fi
 CONFIG="${1:-$CONFIGURATION}"
 CONFIG="${CONFIG:-Release}"
 
-print_header "Building ${APP_NAME:-Project} ($CONFIG)"
+# Load state to get previous APP_VERSION if any
+load_state
+APP_VERSION="${APP_VERSION:-1.0.0}"
+prompt_input "App Version" APP_VERSION
+save_state "APP_VERSION" "$APP_VERSION"
+export APP_VERSION
+
+print_header "Building ${APP_NAME:-Project} ($CONFIG, v$APP_VERSION)"
 
 # Execute pre-build hook if defined
 if [[ -n "${PRE_BUILD_HOOK:-}" ]]; then
@@ -64,6 +71,8 @@ elif [[ "$PROJECT_TYPE" == "xcode" ]]; then
         -configuration "$CONFIG" \
         -derivedDataPath "${BUILD_DIR:-build}/DerivedData" \
         -destination 'platform=macOS' \
+        MARKETING_VERSION="$APP_VERSION" \
+        CURRENT_PROJECT_VERSION="$APP_VERSION" \
         build
         
     APP_PATH="${BUILD_DIR:-build}/DerivedData/Build/Products/$CONFIG/${APP_NAME}.app"

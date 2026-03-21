@@ -31,8 +31,10 @@ fi
 
 # Get version from app if possible
 print_step 1 3 "Gathering release information..."
-VERSION="1.0.0" # Default
-if [[ -d "${BUILD_DIR:-build}/${APP_NAME}.app" ]]; then
+load_state
+
+VERSION="${APP_VERSION:-1.0.0}"
+if [[ -z "${APP_VERSION:-}" && -d "${BUILD_DIR:-build}/${APP_NAME}.app" ]]; then
     PLIST="${BUILD_DIR:-build}/${APP_NAME}.app/Contents/Info.plist"
     VERSION=$(defaults read "${PROJECT_ROOT}/${PLIST}" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
 fi

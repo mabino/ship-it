@@ -92,13 +92,14 @@ fi
 print_step 4 6 "Creating Archive..."
 
 rm -f "${DIST_DIR}/${ZIP_NAME}"
+ABS_ZIP_PATH="${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}"
 if [[ -d "$APP_BUNDLE" ]]; then
     pushd "$(dirname "$APP_BUNDLE")" >/dev/null
-    zip -r -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    zip -r -y "${ABS_ZIP_PATH}" "$(basename "$APP_BUNDLE")" >/dev/null
     popd >/dev/null
 else
     pushd "$(dirname "$APP_BUNDLE")" >/dev/null
-    zip -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    zip -y "${ABS_ZIP_PATH}" "$(basename "$APP_BUNDLE")" >/dev/null
     popd >/dev/null
 fi
 print_success "Archive created: ${DIST_DIR}/${ZIP_NAME}"
@@ -132,13 +133,14 @@ print_success "Ticket stapled successfully"
 
 # Re-zip stapled app
 rm -f "${DIST_DIR}/${ZIP_NAME}"
+ABS_ZIP_PATH="${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}"
 if [[ -d "$APP_BUNDLE" ]]; then
     pushd "$(dirname "$APP_BUNDLE")" >/dev/null
-    zip -r -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    zip -r -y "${ABS_ZIP_PATH}" "$(basename "$APP_BUNDLE")" >/dev/null
     popd >/dev/null
 else
     pushd "$(dirname "$APP_BUNDLE")" >/dev/null
-    zip -y "${PROJECT_ROOT}/${DIST_DIR}/${ZIP_NAME}" "$(basename "$APP_BUNDLE")" >/dev/null
+    zip -y "${ABS_ZIP_PATH}" "$(basename "$APP_BUNDLE")" >/dev/null
     popd >/dev/null
 fi
 

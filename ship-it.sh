@@ -4,6 +4,7 @@ set -e
 
 # ship-it: Unified Apple platform project tools
 
+export PROJECT_ROOT=$(pwd)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/shared.sh"
 

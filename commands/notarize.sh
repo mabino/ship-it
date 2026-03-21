@@ -62,11 +62,20 @@ mkdir -p "$DIST_DIR"
 derive_bundle_info
 
 # Check if we should rebuild
+if [[ -d "$APP_BUNDLE" ]]; then
+    if prompt_confirm "Found existing app bundle ($APP_BUNDLE). Rebuild to ensure latest version?" "REBUILD_BUNDLE"; then
+        rm -rf "$APP_BUNDLE"
+    fi
+fi
+
 if [[ ! -d "$APP_BUNDLE" ]]; then
-    print_info "App bundle not found. Building..."
+    print_info "Building..."
     source "${SCRIPT_DIR}/commands/build.sh" Release
     # Try finding it again after build
     derive_bundle_info
+    # Invalidate any existing notarization ID since we just re-built
+    unset NOTARY_SUBMISSION_ID
+    sed -i '' '/NOTARY_SUBMISSION_ID/d' "$STATE_FILE" 2>/dev/null || true
 fi
 
 if [[ -d "$APP_BUNDLE" ]]; then
@@ -87,6 +96,10 @@ fi
 print_step 3 6 "Code Signing..."
 
 codesign --force --options runtime --deep --timestamp --sign "${DEVELOPER_ID_APPLICATION}" "${APP_BUNDLE}"
+# Invalidate notarization ID because codesigning changes the CDHash
+unset NOTARY_SUBMISSION_ID
+sed -i '' '/NOTARY_SUBMISSION_ID/d' "$STATE_FILE" 2>/dev/null || true
+
 if codesign --verify --verbose "${APP_BUNDLE}" 2>&1 | grep -q "valid on disk"; then
     print_success "Code signature verified"
 else
@@ -113,8 +126,15 @@ print_step 5 6 "Submitting to Apple Notary Service..."
 
 # Check if we already have a submission ID in state
 if [[ -n "${NOTARY_SUBMISSION_ID:-}" ]]; then
-    print_info "Resuming notarization for submission ID: $NOTARY_SUBMISSION_ID"
-else
+    if prompt_confirm "Found existing notarization submission ($NOTARY_SUBMISSION_ID). Resume waiting?" "RESUME_NOTARIZATION"; then
+        print_info "Resuming notarization..."
+    else
+        unset NOTARY_SUBMISSION_ID
+        sed -i '' '/NOTARY_SUBMISSION_ID/d' "$STATE_FILE" 2>/dev/null || true
+    fi
+fi
+
+if [[ -z "${NOTARY_SUBMISSION_ID:-}" ]]; then
     NOTARY_SUBMISSION_ID=$(xcrun notarytool submit "${DIST_DIR}/${ZIP_NAME}" \
         --apple-id "$APPLEID" \
         --team-id "$TEAM_ID" \

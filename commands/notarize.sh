@@ -114,7 +114,7 @@ else
         --apple-id "$APPLEID" \
         --team-id "$TEAM_ID" \
         --password "$APP_SPECIFIC_PASSWORD" \
-        --wait --format json | grep -oE '"id":"[^"]+"' | cut -d'"' -f4)
+        --wait --output-format json | grep -oE '"id":"[^"]+"' | cut -d'"' -f4)
     save_state "NOTARY_SUBMISSION_ID" "$NOTARY_SUBMISSION_ID"
 fi
 

@@ -14,8 +14,32 @@ print_step 1 6 "Configuration and Credentials"
 # Load saved state for credentials if they exist
 load_state
 
+# Try to derive signing identity from keychain if not already set
+if [[ -z "${DEVELOPER_ID_APPLICATION:-}" ]]; then
+    # Look for "Developer ID Application" identities
+    IDENTITIES=$(security find-identity -v -p codesigning | grep "Developer ID Application" | sed -E 's/.*"(.*)".*/\1/' || true)
+    COUNT=$(echo "$IDENTITIES" | grep -c "Developer ID Application" || echo 0)
+    
+    if [[ $COUNT -eq 1 ]]; then
+        DEVELOPER_ID_APPLICATION="$IDENTITIES"
+        print_info "Derived signing identity: $DEVELOPER_ID_APPLICATION"
+    elif [[ $COUNT -gt 1 ]]; then
+        print_info "Multiple Developer ID identities found. Using first as default."
+        DEVELOPER_ID_APPLICATION=$(echo "$IDENTITIES" | head -n 1)
+    fi
+fi
+
 prompt_input "Signing identity (Developer ID Application)" DEVELOPER_ID_APPLICATION
 prompt_input "Apple ID (email)" APPLEID
+if [[ -z "${TEAM_ID:-}" && -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
+    # Extract Team ID from identity string like "Developer ID Application: Name (TEAMID)"
+    DERIVED_TEAM_ID=$(echo "$DEVELOPER_ID_APPLICATION" | grep -oE '\([A-Z0-9]{10}\)' | tr -d '()' || true)
+    if [[ -n "$DERIVED_TEAM_ID" ]]; then
+        TEAM_ID="$DERIVED_TEAM_ID"
+        print_info "Derived Team ID: $TEAM_ID"
+    fi
+fi
+
 prompt_input "Team ID" TEAM_ID
 prompt_input "App-Specific Password" APP_SPECIFIC_PASSWORD true
 

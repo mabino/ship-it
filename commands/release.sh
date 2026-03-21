@@ -50,6 +50,17 @@ RELEASE_NOTES="${RELEASE_NOTES:-Initial release of $APP_NAME $RELEASE_TAG. Notar
 
 print_step 2 3 "Creating release on GitHub..."
 
+# Check if release already exists
+if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+    if prompt_confirm "Release $RELEASE_TAG already exists. Overwrite?" "OVERWRITE_RELEASE"; then
+        print_info "Deleting existing release $RELEASE_TAG..."
+        gh release delete "$RELEASE_TAG" --yes
+    else
+        print_error "Release already exists. Aborting."
+        exit 1
+    fi
+fi
+
 if prompt_confirm "Create release $RELEASE_TAG and upload archive?" "CONFIRM_RELEASE"; then
     gh release create "$RELEASE_TAG" "$RELEASE_ARCHIVE" \
         --title "$RELEASE_TITLE" \

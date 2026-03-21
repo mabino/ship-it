@@ -182,3 +182,32 @@ prompt_confirm() {
         return 1
     fi
 }
+
+derive_bundle_info() {
+    # 1. Try to find the app bundle
+    APP_BUNDLE="${BUILD_DIR:-build}/${APP_NAME}.app"
+    
+    if [[ -d "$APP_BUNDLE" ]]; then
+        # Found in standard location
+        :
+    elif [[ -d "dist/${APP_NAME}.app" ]]; then
+        APP_BUNDLE="dist/${APP_NAME}.app"
+    elif [[ -d "${APP_NAME}.app" ]]; then
+        APP_BUNDLE="${APP_NAME}.app"
+    else
+        # Try finding ANY .app in root or dist or build (limited depth)
+        local found=$(find . -maxdepth 2 -name "*.app" -print -quit)
+        if [[ -n "$found" ]]; then
+            APP_BUNDLE="${found#./}"
+        fi
+    fi
+
+    if [[ -d "$APP_BUNDLE" ]]; then
+        BUNDLE_BASENAME=$(basename "$APP_BUNDLE" .app)
+        ZIP_NAME="${BUNDLE_BASENAME}.zip"
+    else
+        ZIP_NAME="${APP_NAME}.zip"
+    fi
+    export APP_BUNDLE
+    export ZIP_NAME
+}

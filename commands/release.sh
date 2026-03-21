@@ -21,12 +21,14 @@ if ! gh auth status >/dev/null 2>&1; then
 fi
 
 DIST_DIR="${DIST_DIR:-dist}"
-ZIP_NAME="${APP_NAME}.zip"
+derive_bundle_info
 RELEASE_ARCHIVE="${DIST_DIR}/${ZIP_NAME}"
 
 if [[ ! -f "$RELEASE_ARCHIVE" ]]; then
     print_warning "Release archive not found. Notarizing first..."
     source "${SCRIPT_DIR}/commands/notarize.sh"
+    # Update RELEASE_ARCHIVE in case notarize.sh updated bundle info
+    RELEASE_ARCHIVE="${DIST_DIR}/${ZIP_NAME}"
 fi
 
 # Get version from app if possible

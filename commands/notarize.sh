@@ -57,24 +57,29 @@ print_step 2 6 "Preparing build..."
 
 DIST_DIR="${DIST_DIR:-dist}"
 mkdir -p "$DIST_DIR"
-ZIP_NAME="${APP_NAME}.zip"
+
+# Try to find the app bundle and set ZIP_NAME
+derive_bundle_info
 
 # Check if we should rebuild
-if [[ ! -f "${BUILD_DIR:-build}/${APP_NAME}.app" ]]; then
+if [[ ! -d "$APP_BUNDLE" ]]; then
     print_info "App bundle not found. Building..."
     source "${SCRIPT_DIR}/commands/build.sh" Release
+    # Try finding it again after build
+    derive_bundle_info
 fi
 
-APP_BUNDLE="${BUILD_DIR:-build}/${APP_NAME}.app"
-if [[ ! -d "$APP_BUNDLE" ]]; then
+if [[ -d "$APP_BUNDLE" ]]; then
+    print_info "Found app bundle: $APP_BUNDLE"
+else
     # Maybe it's a binary for SPM
     APP_BINARY="${BUILD_DIR:-build}/${APP_NAME}"
     if [[ -f "$APP_BINARY" ]]; then
-        print_info "Detected binary instead of app bundle. Wrapping in temporary app bundle structure for notarization if needed."
-        # For CLI tools, we usually sign the binary directly.
+        print_info "Detected binary instead of app bundle. Signing binary directly."
         APP_BUNDLE="$APP_BINARY"
+        ZIP_NAME="${APP_NAME}.zip"
     else
-        print_error "App bundle not found at $APP_BUNDLE"
+        print_error "App bundle not found."
         exit 1
     fi
 fi
